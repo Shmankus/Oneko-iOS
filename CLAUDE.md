@@ -9,7 +9,9 @@ Package id stays `com.pixelomer.oneko`; 4-space indentation like upstream.
 
 - 1.5.0 installed on the XR: Settings → Oneko → Random Edges (`RandomEdges`): a tap on the
   cat (its frame + 8 pt) and a lost edge pick a random edge (`randomFootAwayFrom:`, at least 32 pt
-  from the cat) instead of the nearest; other taps are ignored (`handleTouches`) unless Bottom of Screen Only is on. 1.4.0: wall scratching in edge mode (user-verified at icon sides). 1.3.0:
+  from the cat) instead of the nearest; other taps are ignored (`handleTouches`). In bottom mode a cat tap picks a random x
+  (`randomBottomX`): 1 in 3 a side, so it climbs the corner and scratches the wall; other
+  picks stay on the flat floor (a random x on a slope looked like a failed climb, 2026-10-08). 1.4.0: wall scratching in edge mode (user-verified at icon sides). 1.3.0:
   scratching animations, corner slopes and slide-to-sleep in bottom
   mode (all user-verified 2026-10-08). 1.2.0 added Settings → Oneko → Bottom of Screen Only.
   1.1.0 (iOS 17.0), 2026-10-08. Edge detection verified with debug dumps on
@@ -24,7 +26,9 @@ Package id stays `com.pixelomer.oneko`; 4-space indentation like upstream.
   the togi animation after stopping (upstream had it commented out, so togi never played);
   `restLocation`: the yawning (akubi) cat slides there at 4 pt/tick before sleeping (setting
   `mouseLocation` cancels it); the d_togi sprite is drawn 10 pt lower (user-tuned: it draws the
-  cat higher than the other sprites, so it seemed to jump up).
+  cat higher than the other sprites, so it seemed to jump up); a sleeping cat stirs about once
+  per 2400 ticks (~5 min, `STIR_CHANCE`): akubi → jare, kaki or d_togi in place → sleep (`stirTo`). `canScratchDown` (set in `setTargetFoot`) is NO
+  in bottom mode and on the screen-bottom fallback, so it never scratches down at the bezel there.
 - `EdgeMap.m` (ARC, `-O2`) — screen capture + edge finding, one pixel per point of the view.
 - `Tweak.xm` — window, timer (8 Hz), tap detection (`handleTouches`), scan scheduling and
   targeting (`applyEdges`).
@@ -38,6 +42,8 @@ Package id stays `com.pixelomer.oneko`; 4-space indentation like upstream.
 
 ## How it works
 
+- No scans while locked or for 8 ticks (1 s) after unlocking (`UNLOCK_SCAN_DELAY`): the unlock
+  animation made the cat's edge vanish and woke it.
 - Every 4 ticks (0.5 s; 8 while asleep) a background queue renders the display with
   `CARenderServerRenderDisplay(0, "LCD", surface, 0, 0)` into our own 828x1792 BGRA IOSurface and
   samples every other pixel (via precomputed row/column offsets, so 90° rotations are free).
@@ -53,7 +59,9 @@ Package id stays `com.pixelomer.oneko`; 4-space indentation like upstream.
   wall (l/r_togi) when the tap is closer to a side than the cat's center can get (16 pt).
 - Bottom mode floor follows the display's rounded corners (`-[UIScreen _displayCornerRadius]`,
   41.5 pt on the XR) under the feet (±10 pt from center), so the cat climbs into the corner instead
-  of being clipped; on a slope it gets a rest location where the floor turns flat.
+  of being clipped; on a slope it gets a rest location where the floor turns flat. It walks along
+  the curve (`followFloor`: each tick `mouseLocation` is one 13 pt stride further along the floor,
+  the final target once that close) instead of straight through the air to the top.
 - Target: a tap → edge nearest the tap; else keep the target while an edge is within 3 pt of it;
   else nearest edge to the cat's feet. With Random Edges, a tap on the cat and a lost edge pick a random edge entry
   (uniform over stored edges, so an edge found on two adjacent rows counts twice) and a random x on it. Feet are 3 pt above the frame bottom (sprite padding).

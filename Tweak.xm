@@ -131,6 +131,9 @@ static NSTimer *timer;
 // Rescan the screen every this many ticks (0.125 s each), less often while the cat sleeps.
 #define SCAN_INTERVAL 4
 #define SCAN_INTERVAL_ASLEEP 8
+// Don't scan for this many ticks after unlocking: the unlock animation would make
+// the cat's edge vanish for a moment and wake it.
+#define UNLOCK_SCAN_DELAY 8
 // The sprites leave a few empty rows under the cat's feet.
 #define FOOT_INSET 3.0
 #define CAT_SIZE 32.0
@@ -139,7 +142,7 @@ static NSTimer *timer;
 
 static dispatch_queue_t scanQueue;
 static BOOL scanning, scanSoon;
-static unsigned scanTicks;
+static unsigned scanTicks, unlockTicks;
 // Where the cat's feet are headed, always on an edge from the last scan.
 static BOOL hasTarget;
 static CGPoint targetFoot;
@@ -191,6 +194,8 @@ static void setTargetFoot(CGPoint foot) {
     }
     hasTarget = YES;
     targetFoot = foot;
+    // Scratching down at the bottom of the screen would scratch the bezel.
+    neko.canScratchDown = !bottomOnly && foot.y < viewController.view.bounds.size.height - 3;
     neko.mouseLocation = CGPointMake(foot.x, foot.y + FOOT_INSET - CAT_SIZE);
     neko.hasRestLocation = NO;
 }
@@ -241,7 +246,8 @@ static void applyEdges(OnekoEdgeMap *map) {
         // An edge right above the target is a ceiling to scratch.
         neko.scratchDirection = OnekoScratchUp;
     } else {
-        neko.scratchDirection = scratchDownHere ? OnekoScratchDown : OnekoScratchNone;
+        neko.scratchDirection = scratchDownHere && neko.canScratchDown ? OnekoScratchDown :
+            OnekoScratchNone;
     }
 }
 
@@ -260,17 +266,70 @@ static CGFloat bottomFloorY(CGFloat x, CGSize size) {
     return size.height - (r - sqrt(r * r - (r - d) * (r - d)));
 }
 
+// The cat walks straight at its target, which would cut through the air up a
+// corner. Instead, each tick it heads for a point one stride (13 pt, as far as
+// Oneko moves per tick) further along the floor, until the target is that close.
+#define CAT_STRIDE 13.0
+static BOOL followingFloor;
+
+static void followFloor(CGSize size) {
+    CGFloat x = CGRectGetMidX(neko.frame);
+    CGFloat y = bottomFloorY(x, size);
+    CGFloat step = targetFoot.x > x ? 1 : -1;
+    CGFloat walked = 0;
+    while (walked < CAT_STRIDE) {
+        if (fabs(targetFoot.x - x) <= 1) {
+            // Arrived (or will this tick): head for the target itself.
+            followingFloor = NO;
+            neko.mouseLocation = CGPointMake(targetFoot.x, targetFoot.y + FOOT_INSET - CAT_SIZE);
+            return;
+        }
+        CGFloat nextY = bottomFloorY(x + step, size);
+        walked += hypot(1, nextY - y);
+        x += step;
+        y = nextY;
+    }
+    neko.mouseLocation = CGPointMake(x, y + FOOT_INSET - CAT_SIZE);
+}
+
+// Random Edges at the bottom: a random spot on the flat part of the floor at least
+// a cat away from `from`, or a third of the time a point past one side, so the cat
+// climbs all the way up that corner and scratches the wall. (A random spot on a
+// slope just looked like a climb that gave up.)
+static CGFloat randomBottomX(CGFloat width, CGFloat from) {
+    const CGFloat minX = CAT_SIZE / 2, maxX = width - CAT_SIZE / 2;
+    if (arc4random_uniform(3) == 0) {
+        BOOL left = arc4random_uniform(2) == 0;
+        // Not the side it's already scratching.
+        if (left ? from - minX < CAT_SIZE : maxX - from < CAT_SIZE) {
+            left = !left;
+        }
+        NSLog(@"climbing %s corner", left ? "left" : "right");
+        return left ? 0 : width;
+    }
+    const CGFloat flat = displayCornerRadius + FEET_HALF_WIDTH;
+    const CGFloat lo = MAX(minX, flat), hi = MIN(maxX, width - flat);
+    CGFloat x = from;
+    for (int tries = 0; tries < 8 && fabs(x - from) < CAT_SIZE; tries++) {
+        x = lo + (hi - lo) * arc4random_uniform(10001) / 10000.0;
+    }
+    return x;
+}
+
 static void followBottom() {
     CGSize size = viewController.view.bounds.size;
     CGFloat x;
     const CGFloat minX = CAT_SIZE / 2, maxX = size.width - CAT_SIZE / 2;
     if (touchPending) {
         touchPending = NO;
-        x = touchPoint.x;
+        x = randomEdges ? randomBottomX(size.width, CGRectGetMidX(neko.frame)) : touchPoint.x;
         // A tap closer to a side than the cat can get: scratch that wall.
         neko.scratchDirection = x < minX ? OnekoScratchLeft :
             x > maxX ? OnekoScratchRight : OnekoScratchNone;
     } else if (hasTarget && fabs(targetFoot.y - bottomFloorY(targetFoot.x, size)) < 0.5) {
+        if (followingFloor) {
+            followFloor(size);
+        }
         return;
     } else {
         x = CGRectGetMidX(neko.frame);
@@ -278,6 +337,8 @@ static void followBottom() {
     }
     x = MIN(MAX(x, minX), maxX);
     setTargetFoot(CGPointMake(x, bottomFloorY(x, size)));
+    followingFloor = YES;
+    followFloor(size);
     // Up a corner's slope: slide down to where the floor turns flat before sleeping.
     const CGFloat flat = displayCornerRadius + FEET_HALF_WIDTH;
     CGFloat restX = MIN(MAX(x, flat), size.width - flat);
@@ -371,7 +432,7 @@ static void handleTouches(UIEvent *event) {
                 touchOnCat = CGRectContainsPoint(CGRectInset(neko.frame, -CAT_TAP_SLOP,
                     -CAT_TAP_SLOP), touchPoint);
                 // With Random Edges the cat only answers taps on itself.
-                if (!randomEdges || bottomOnly || touchOnCat) {
+                if (!randomEdges || touchOnCat) {
                     touchPending = YES;
                     scanSoon = YES;
                 }
@@ -391,6 +452,7 @@ static void onekoTimerTick() {
     SpringBoard *springboard = (SpringBoard *)[UIApplication sharedApplication];
     if ([springboard isLocked]) {
         neko.hidden = YES;
+        unlockTicks = UNLOCK_SCAN_DELAY;
         return;
     }
     neko.hidden = NO;
@@ -414,6 +476,8 @@ static void onekoTimerTick() {
     }
     if (bottomOnly) {
         followBottom();
+    } else if (unlockTicks > 0) {
+        unlockTicks--;
     } else if (scanSoon || ++scanTicks >= (neko.asleep ? SCAN_INTERVAL_ASLEEP : SCAN_INTERVAL)) {
         scanTicks = 0;
         startEdgeScan();

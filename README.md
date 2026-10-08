@@ -25,7 +25,11 @@ Swipes, long presses and multi-finger gestures are ignored.
 
 - a wall right beside it, such as the side of an app icon it's standing in (it steps over to it);
 - an edge right above its head, by reaching up;
-- the edge it's standing on (about half the time).
+- the edge it's standing on (about half the time, but never the bottom of the screen).
+
+**It stirs in its sleep.** Every few minutes on average, a sleeping cat yawns, washes itself,
+scratches itself or scratches the edge it lies on (never the bottom of the screen), and goes back
+to sleep.
 
 All the original animations are kept: running in eight directions, washing, scratching itself,
 yawning and sleeping.
@@ -40,7 +44,8 @@ Settings → Oneko:
   before falling asleep.
 - **Random Edges**: tap the cat itself and it runs off to a random edge anywhere on the screen.
   When the edge under it goes away, it picks a random one instead of the closest. Taps
-  anywhere else are ignored while this is on.
+  anywhere else are ignored while this is on. With Bottom of Screen Only, it runs to a random
+  spot along the bottom instead, and now and then climbs a corner to scratch the side.
 
 Changes apply immediately, no respring needed.
 

@@ -14,6 +14,9 @@
     unsigned char tickCount, stateCount;
     float moveDx, moveDy;
     BOOL sliding;
+    /* Stirring in its sleep: yawns, does this (jare, kaki, or d_togi if
+       canScratchDown), then goes straight back to sleep. nil otherwise. */
+    id stirTo;
     id myTimer;
     UIImageView *view;
 }
@@ -151,6 +154,8 @@
 
 /* Points per tick when sliding to the rest location */
 #define SLIDE_SPEED 4.0f
+/* A sleeping cat wakes up to scratch about once in this many ticks (~5 min) */
+#define STIR_CHANCE 480
 
 - (void)setMouseLocation:(CGPoint)mouseLocation {
     _mouseLocation = mouseLocation;
@@ -319,6 +324,11 @@
         if (stateCount < 10) {
             goto breakout;
         }
+        if (stirTo != nil) {
+            stirTo = nil;
+            [self setStateTo:sleep];
+            goto breakout;
+        }
         [self setStateTo:kaki];
     } else if(nekoState == kaki) {
         if (isNekoMoveStart) {
@@ -326,6 +336,11 @@
             goto breakout;
         }
         if (stateCount < 4) {
+            goto breakout;
+        }
+        if (stirTo != nil) {
+            stirTo = nil;
+            [self setStateTo:sleep];
             goto breakout;
         }
         [self setStateTo:akubi];
@@ -337,16 +352,23 @@
         if (stateCount < 6 || sliding) {
             goto breakout;
         }
-        [self setStateTo:sleep];
+        [self setStateTo:stirTo != nil ? stirTo : sleep];
     } else if(nekoState == sleep) {
         if (isNekoMoveStart) {
             [self setStateTo:awake];
             goto breakout;
         }
+        if (arc4random_uniform(STIR_CHANCE) == 0) {
+            /* Yawn, wash or scratch itself or the ground, then doze off again */
+            NSArray *choices = _canScratchDown ? @[jare, kaki, d_togi] : @[jare, kaki];
+            stirTo = choices[arc4random_uniform((uint32_t)choices.count)];
+            [self setStateTo:akubi];
+        }
     } else if(nekoState == awake) {
         if (stateCount < 3) {
             goto breakout;
         }
+        stirTo = nil;
         [self NekoDirection];	/* 猫が動く向きを求める */
     } else if(isMoving) {
         x += moveDx;
@@ -358,6 +380,11 @@
             goto breakout;
         }
         if (stateCount < 10) {
+            goto breakout;
+        }
+        if (stirTo != nil) {
+            stirTo = nil;
+            [self setStateTo:sleep];
             goto breakout;
         }
         [self setStateTo:kaki];

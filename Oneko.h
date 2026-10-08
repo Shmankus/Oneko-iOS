@@ -16,5 +16,7 @@ typedef NS_ENUM(NSInteger, OnekoScratch) {
 @property (nonatomic, assign) BOOL hasRestLocation;
 @property (nonatomic, assign) CGPoint restLocation;
 @property (nonatomic, readonly, getter=isAsleep) BOOL asleep;
+/* NO at the bottom of the screen, where there's nothing to scratch down on */
+@property (nonatomic, assign) BOOL canScratchDown;
 - (void)handleTimer:(NSTimer*)timer;
 @end
