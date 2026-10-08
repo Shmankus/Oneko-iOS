@@ -7,7 +7,9 @@ Package id stays `com.pixelomer.oneko`; 4-space indentation like upstream.
 
 ## Status
 
-- 1.4.0 installed on the XR: wall scratching in edge mode (user-verified at icon sides). 1.3.0:
+- 1.5.0 installed on the XR: Settings → Oneko → Random Edges (`RandomEdges`): a tap on the
+  cat (its frame + 8 pt) and a lost edge pick a random edge (`randomFootAwayFrom:`, at least 32 pt
+  from the cat) instead of the nearest; other taps are ignored (`handleTouches`) unless Bottom of Screen Only is on. 1.4.0: wall scratching in edge mode (user-verified at icon sides). 1.3.0:
   scratching animations, corner slopes and slide-to-sleep in bottom
   mode (all user-verified 2026-10-08). 1.2.0 added Settings → Oneko → Bottom of Screen Only.
   1.1.0 (iOS 17.0), 2026-10-08. Edge detection verified with debug dumps on
@@ -27,8 +29,9 @@ Package id stays `com.pixelomer.oneko`; 4-space indentation like upstream.
 - `Tweak.xm` — window, timer (8 Hz), tap detection (`handleTouches`), scan scheduling and
   targeting (`applyEdges`).
 - `layout/Library/PreferenceLoader/Preferences/Oneko.plist` (+ icon PNGs drawn from `mati2.gif`) —
-  plist-only PreferenceLoader page (no bundle): switch `BottomOnly` in domain `com.pixelomer.oneko`,
-  posts `com.pixelomer.oneko/changed`; `Tweak.xm` `loadPrefs`/`followBottom`. Dopamine redirects
+  plist-only PreferenceLoader page (no bundle): switches `BottomOnly`
+  and `RandomEdges` in domain `com.pixelomer.oneko`, posts `com.pixelomer.oneko/changed`; `Tweak.xm`
+  `loadPrefs`/`followBottom`. Dopamine redirects
   the domain to `/var/jb/var/mobile/Library/Preferences/com.pixelomer.oneko.plist`; SpringBoard reads
   it with `CFPreferencesAppSynchronize` + `CFPreferencesCopyAppValue` (verified 2026-10-08).
 - `bundle.sh` → `resources.m` (generated, gitignored): the GIF sprites as a C array.
@@ -52,7 +55,8 @@ Package id stays `com.pixelomer.oneko`; 4-space indentation like upstream.
   41.5 pt on the XR) under the feet (±10 pt from center), so the cat climbs into the corner instead
   of being clipped; on a slope it gets a rest location where the floor turns flat.
 - Target: a tap → edge nearest the tap; else keep the target while an edge is within 3 pt of it;
-  else nearest edge to the cat's feet. Feet are 3 pt above the frame bottom (sprite padding).
+  else nearest edge to the cat's feet. With Random Edges, a tap on the cat and a lost edge pick a random edge entry
+  (uniform over stored edges, so an edge found on two adjacent rows counts twice) and a random x on it. Feet are 3 pt above the frame bottom (sprite padding).
 
 ## Pitfalls (2026-10-08, XR)
 

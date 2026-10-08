@@ -35,6 +35,26 @@
 			<key>PostNotification</key>
 			<string>com.pixelomer.oneko/changed</string>
 		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Tap the cat to send it to a random edge on the screen; taps elsewhere are ignored. When the edge under it goes away, it also picks a random one instead of the closest. Has no effect with Bottom of Screen Only.</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>label</key>
+			<string>Random Edges</string>
+			<key>key</key>
+			<string>RandomEdges</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.pixelomer.oneko</string>
+			<key>PostNotification</key>
+			<string>com.pixelomer.oneko/changed</string>
+		</dict>
 	</array>
 </dict>
 </plist>

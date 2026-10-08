@@ -35,6 +35,10 @@
 // or the bottom of the view if there are none.
 - (CGPoint)nearestFootTo:(CGPoint)point width:(CGFloat)width;
 
+// A random place to stand on a random edge, at least `width` away from `point`
+// (where the cat is now). The nearest foot if no edge has room that far away.
+- (CGPoint)randomFootAwayFrom:(CGPoint)point width:(CGFloat)width;
+
 @property (nonatomic, readonly) NSUInteger edgeCount;
 
 #if DEBUG

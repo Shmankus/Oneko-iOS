@@ -149,24 +149,35 @@ static BOOL scratchDownHere;
 // A tap sends the cat to the edge closest to it.
 static BOOL touchPending;
 static CGPoint touchPoint;
+// With Random Edges, only a tap on the cat itself counts, and sends it to a random edge.
+static BOOL touchOnCat;
+// Taps this close around the cat's frame count as on it (it's a small target).
+#define CAT_TAP_SLOP 8.0
 
 // Settings > Oneko (a PreferenceLoader page), saved by the Settings app via cfprefsd.
 #define PREFS_DOMAIN CFSTR("com.pixelomer.oneko")
 #define PREFS_CHANGED CFSTR("com.pixelomer.oneko/changed")
 // Stay at the bottom of the screen and only follow the x of taps.
 static BOOL bottomOnly;
+// Tapping the cat or losing its edge sends it to a random edge instead of the closest one.
+static BOOL randomEdges;
+
+static BOOL boolPref(CFStringRef key) {
+    id value = CFBridgingRelease(CFPreferencesCopyAppValue(key, PREFS_DOMAIN));
+    return [value respondsToSelector:@selector(boolValue)] && [value boolValue];
+}
 
 static void loadPrefs() {
     CFPreferencesAppSynchronize(PREFS_DOMAIN);
-    id value = CFBridgingRelease(CFPreferencesCopyAppValue(CFSTR("BottomOnly"), PREFS_DOMAIN));
-    bottomOnly = [value respondsToSelector:@selector(boolValue)] && [value boolValue];
+    bottomOnly = boolPref(CFSTR("BottomOnly"));
+    randomEdges = boolPref(CFSTR("RandomEdges"));
 }
 
 static void prefsChanged(CFNotificationCenterRef center, void *observer, CFStringRef name,
     const void *object, CFDictionaryRef userInfo)
 {
     loadPrefs();
-    NSLog(@"bottomOnly = %d", bottomOnly);
+    NSLog(@"bottomOnly = %d, randomEdges = %d", bottomOnly, randomEdges);
     hasTarget = NO;
     scanSoon = YES;
 }
@@ -193,10 +204,12 @@ static void applyEdges(OnekoEdgeMap *map) {
     CGPoint foot = CGPointMake(CGRectGetMidX(frame), CGRectGetMaxY(frame) - FOOT_INSET);
     if (touchPending) {
         touchPending = NO;
-        setTargetFoot([map nearestFootTo:touchPoint width:CAT_SIZE]);
+        setTargetFoot(randomEdges ? [map randomFootAwayFrom:foot width:CAT_SIZE] :
+            [map nearestFootTo:touchPoint width:CAT_SIZE]);
     } else if (!hasTarget || ![map hasEdgeAtFoot:targetFoot]) {
-        // The edge went away (or never was): go to the next closest one.
-        setTargetFoot([map nearestFootTo:foot width:CAT_SIZE]);
+        // The edge went away (or never was): go to the next closest one, or any.
+        setTargetFoot(randomEdges ? [map randomFootAwayFrom:foot width:CAT_SIZE] :
+            [map nearestFootTo:foot width:CAT_SIZE]);
     }
     // The frame's top, where the paws reach when scratching up.
     CGFloat paws = targetFoot.y + FOOT_INSET - CAT_SIZE;
@@ -355,9 +368,14 @@ static void handleTouches(UIEvent *event) {
                 CGSize referenceBounds = [[UIScreen mainScreen] _referenceBounds].size;
                 touchPoint = TranslatePoint(tapStart, referenceBounds,
                     UIInterfaceOrientationPortrait, [window interfaceOrientation]);
-                touchPending = YES;
-                scanSoon = YES;
-                NSLog(@"tap at %.0f,%.0f", touchPoint.x, touchPoint.y);
+                touchOnCat = CGRectContainsPoint(CGRectInset(neko.frame, -CAT_TAP_SLOP,
+                    -CAT_TAP_SLOP), touchPoint);
+                // With Random Edges the cat only answers taps on itself.
+                if (!randomEdges || bottomOnly || touchOnCat) {
+                    touchPending = YES;
+                    scanSoon = YES;
+                }
+                NSLog(@"tap at %.0f,%.0f%s", touchPoint.x, touchPoint.y, touchOnCat ? " (cat)" : "");
             }
             armed = NO;
             break;

@@ -38,6 +38,9 @@ Settings → Oneko:
   to line up with your taps; the screen isn't scanned at all. Tap right next to a side and it
   climbs into the rounded corner to scratch the wall, then slides back down to the flat part
   before falling asleep.
+- **Random Edges**: tap the cat itself and it runs off to a random edge anywhere on the screen.
+  When the edge under it goes away, it picks a random one instead of the closest. Taps
+  anywhere else are ignored while this is on.
 
 Changes apply immediately, no respring needed.
 

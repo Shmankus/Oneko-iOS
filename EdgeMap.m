@@ -350,6 +350,39 @@ static inline size_t PixelOffset(const OnekoPixels *src, CGAffineTransform t, in
     return best;
 }
 
+- (CGPoint)randomFootAwayFrom:(CGPoint)point width:(CGFloat)width {
+    const OnekoEdge *edges = _edges.bytes;
+    // Pick uniformly among the edges with a spot far enough away (reservoir sampling).
+    NSUInteger candidates = 0;
+    CGFloat pickLo = 0, pickHi = 0, pickY = 0;
+    for (NSUInteger i = 0, n = self.edgeCount; i < n; i++) {
+        CGFloat lo = edges[i].x0 + width / 2, hi = edges[i].x1 + 1 - width / 2;
+        if (lo > hi) {
+            lo = hi = (edges[i].x0 + edges[i].x1) / 2.0;
+        }
+        CGFloat farX = fabs(lo - point.x) > fabs(hi - point.x) ? lo : hi;
+        if (hypot(farX - point.x, edges[i].y - point.y) < width) {
+            continue;
+        }
+        if (arc4random_uniform((uint32_t)++candidates) == 0) {
+            pickLo = lo;
+            pickHi = hi;
+            pickY = edges[i].y;
+        }
+    }
+    if (candidates == 0) {
+        return [self nearestFootTo:point width:width];
+    }
+    // A random spot along it, skipping the part that's too close.
+    for (int tries = 0; tries < 8; tries++) {
+        CGFloat x = pickLo + (pickHi - pickLo) * arc4random_uniform(10001) / 10000.0;
+        if (hypot(x - point.x, pickY - point.y) >= width) {
+            return CGPointMake(x, pickY);
+        }
+    }
+    return CGPointMake(fabs(pickLo - point.x) > fabs(pickHi - point.x) ? pickLo : pickHi, pickY);
+}
+
 #if DEBUG
 - (void)writeDebugImageToPath:(NSString *)path {
     uint8_t *copy = malloc((size_t)_width * _height * 4);
