@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>entry</key>
+	<dict>
+		<key>cell</key>
+		<string>PSLinkCell</string>
+		<key>icon</key>
+		<string>Oneko.png</string>
+		<key>label</key>
+		<string>Oneko</string>
+	</dict>
+	<key>title</key>
+	<string>Oneko</string>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>The cat stays at the bottom of the screen instead of walking to edges, and runs left or right to line up with your taps.</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>label</key>
+			<string>Bottom of Screen Only</string>
+			<key>key</key>
+			<string>BottomOnly</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.pixelomer.oneko</string>
+			<key>PostNotification</key>
+			<string>com.pixelomer.oneko/changed</string>
+		</dict>
+	</array>
+</dict>
+</plist>

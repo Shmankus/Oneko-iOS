@@ -10,10 +10,9 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-type pv 2>/dev/null >&2 || {
-    echo pv is missing.
-    exit 1
-}
+# pv only shows progress
+cat_files=pv
+type pv 2>/dev/null >&2 || cat_files=cat
 
 file_size="$(wc -c < "$1" | awk '{print $1}')"
 
@@ -21,7 +20,7 @@ echo "Converting resources to a C file..."
 
 echo '#import <Foundation/Foundation.h>' > resources.m
 echo "static uint8_t oneko_resources[] = " >> resources.m
-pv "$@" | hexdump -v -e '16/1 "_x%02X" "\n"' | sed 's/_/\\/g; s/\\x  //g; s/.*/    "&"/' >> resources.m
+"$cat_files" "$@" | hexdump -v -e '16/1 "_x%02X" "\n"' | sed 's/_/\\/g; s/\\x  //g; s/.*/    "&"/' >> resources.m
 echo ";" >> resources.m
 
 echo "NSDictionary<NSString *, NSData *> *oneko_getResources() {" >> resources.m

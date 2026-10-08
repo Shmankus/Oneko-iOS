@@ -13,13 +13,14 @@
     id nekoState;
     unsigned char tickCount, stateCount;
     float moveDx, moveDy;
+    BOOL sliding;
     id myTimer;
     UIImageView *view;
 }
 
 - (CGRect)cocoaFrame {
     CGRect frame = self.frame;
-    frame.origin.y = [[UIScreen mainScreen] bounds].size.height - frame.origin.y;
+    frame.origin.y = self.superview.bounds.size.height - frame.origin.y;
     return frame;
 }
 
@@ -31,7 +32,7 @@
 }
 
 - (void)setCocoaFrame:(CGRect)frame {
-    frame.origin.y = [[UIScreen mainScreen] bounds].size.height - frame.origin.y;
+    frame.origin.y = self.superview.bounds.size.height - frame.origin.y;
     self.frame = frame;
 }
 
@@ -148,6 +149,18 @@
     return NO;
 }
 
+/* Points per tick when sliding to the rest location */
+#define SLIDE_SPEED 4.0f
+
+- (void)setMouseLocation:(CGPoint)mouseLocation {
+    _mouseLocation = mouseLocation;
+    sliding = NO;
+}
+
+- (BOOL)isAsleep {
+    return nekoState == sleep;
+}
+
 - (void)calcDxDyForX:(float)x Y:(float)y
 {
     float		MouseX, MouseY;
@@ -249,11 +262,37 @@
     [self calcDxDyForX:x Y:y];
     BOOL isNekoMoveStart = [self isNekoMoveStart];
     
+    BOOL isMoving = nekoState == u_move || nekoState == d_move || nekoState == l_move || nekoState == r_move || nekoState == ul_move || nekoState == ur_move || nekoState == dl_move || nekoState == dr_move;
+    if (nekoState == akubi && _hasRestLocation) {
+        /* Slide (still yawning, not running) to where it can sleep */
+        _hasRestLocation = NO;
+        _mouseLocation = _restLocation;
+        sliding = YES;
+        [self calcDxDyForX:x Y:y];
+    }
+    if (sliding) {
+        float length = hypotf(moveDx, moveDy);
+        if (nekoState != akubi || length <= SLIDE_SPEED) {
+            sliding = NO;
+        } else {
+            x += moveDx * SLIDE_SPEED / length;
+            y += moveDy * SLIDE_SPEED / length;
+        }
+        isNekoMoveStart = NO;
+    }
+    if (!sliding && !isNekoMoveStart && !isMoving && nekoState != awake) {
+        /* Too close to walk: slide the last few points so the feet stay on the edge */
+        x += moveDx;
+        y += moveDy;
+    }
+    
     if(nekoState != sleep) {
         [view setImage:(UIImage *)[nekoState objectAtIndex:tickCount % [nekoState count]]];
     } else {
         [view setImage:(UIImage *)[nekoState objectAtIndex:(tickCount>>2) % [nekoState count]]];
     }
+    /* The scratching-down sprites draw the cat higher than the others */
+    view.frame = CGRectMake(0, nekoState == d_togi ? 10 : 0, 32, 32);
     
     [self advanceClock];
     
@@ -265,17 +304,13 @@
         if (stateCount < 4) {
             goto breakout;
         }
-        /*if (moveDx < 0 && x <= 0) {
-        [self setStateTo:l_togi];
-        } else if (moveDx > 0 && x >= WindowWidth - 32) {
-            [self setStateTo:r_togi];
-        } else if (moveDy < 0 && y <= 0) {
-            [self setStateTo:u_togi];
-        } else if (moveDy > 0 && y >= WindowHeight - 32) {
-            [self setStateTo:d_togi];
-        } else {*/
-        [self setStateTo:jare];
-        //}
+        switch (_scratchDirection) {
+            case OnekoScratchUp:    [self setStateTo:u_togi]; break;
+            case OnekoScratchDown:  [self setStateTo:d_togi]; break;
+            case OnekoScratchLeft:  [self setStateTo:l_togi]; break;
+            case OnekoScratchRight: [self setStateTo:r_togi]; break;
+            default:                [self setStateTo:jare];   break;
+        }
     } else if(nekoState == jare) {
         if (isNekoMoveStart) {
             [self setStateTo:awake];
@@ -299,7 +334,7 @@
             [self setStateTo:awake];
             goto breakout;
         }
-        if (stateCount < 6) {
+        if (stateCount < 6 || sliding) {
             goto breakout;
         }
         [self setStateTo:sleep];
@@ -313,7 +348,7 @@
             goto breakout;
         }
         [self NekoDirection];	/* 猫が動く向きを求める */
-    } else if(nekoState == u_move || nekoState == d_move || nekoState == l_move || nekoState == r_move || nekoState == ul_move || nekoState == ur_move || nekoState == dl_move || nekoState == dr_move) {
+    } else if(isMoving) {
         x += moveDx;
         y += moveDy;
         [self NekoDirection];

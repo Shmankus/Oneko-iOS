@@ -1,5 +1,7 @@
 *
 !Resources/
+!layout/
+!layout/**
 !Resources/*.gif
 !.gitignore
 !bundle.sh
@@ -9,6 +11,9 @@
 !Oneko.h
 !Oneko.m
 !Oneko.plist
+!EdgeMap.h
+!EdgeMap.m
+!CLAUDE.md
 !resources.h
 !Tweak.xm
 !README.md

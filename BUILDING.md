@@ -1,13 +1,11 @@
 # Building Oneko for iOS
 
-- Generate `resources.m`
+Build with Theos on macOS (SpringBoard on A12+ needs arm64e). `resources.m` is generated from
+`Resources/*.gif` by `bundle.sh` automatically (`pv` shows progress if it's installed).
 
 ```
-./bundle.sh Resources/*.gif
+make package install                 # debug build: logs to syslog, /var/tmp/oneko-dump support
+make package install FINALPACKAGE=1  # release build
 ```
 
-- Build normally with Theos
-
-```
-THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1 make package
-```
+Put `THEOS_DEVICE_IP = <phone>` in a `Makefile.local` (gitignored) to install over SSH.
